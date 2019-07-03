@@ -46,11 +46,18 @@ class AuthController {
   * @param {object} req
   * @param {object} res
   * @returns {object} res
-  * @memberof AuthController
+  * @memberof UserController
   */
   static async logOut(req, res) {
     const { token } = req.headers || req.body || req.query;
     try {
+      const result = await Blacklist.findOne({ where: { token } });
+      if (result) {
+        return res.status(409).json({
+          status: 409,
+          message: 'User already Logged Out',
+        });
+      }
       const createdToken = await Blacklist.create({
         token
       });
