@@ -8,7 +8,6 @@ import { Blacklist, User } from '../db/models';
 class UserController {
   /**
  *
- *
  * @static
  * @param {object} request
  * @param {object} response
@@ -22,6 +21,13 @@ class UserController {
         where: { email },
         attributes: { exclude: ['password'] }
       });
+
+      if (!user) {
+        return response.status(404).json({
+          status: 400,
+          error: 'User not found',
+        });
+      }
       const { id } = user;
       const userToken = auth.authenticate(id);
       if (user) {
@@ -38,7 +44,7 @@ class UserController {
     } catch (error) {
       return response.status(500).json({
         status: 500,
-        message: error,
+        message: error.message,
       });
     }
   }
@@ -53,83 +59,82 @@ class UserController {
   * @memberof UserController
   */
   static async logOut(request, response) {
-    const { token } = request.headers || request.body || request.query;
+    const token = request.headers.authorization || request.body || request.query;
     try {
       const createdToken = await Blacklist.create({
         token
       });
-      return response.status(201).json({
-        status: 201,
+      return response.status(200).json({
+        status: 200,
         message: 'User successfully Logged Out',
         data: createdToken
       });
     } catch (error) {
       return response.status(500).json({
         status: 500,
-        data: error,
+        error: error.message,
       });
     }
   }
 
   /**
      *
-     * @param {object} req the request body
-     * @param {object} res the response body
-     * @returns {object} res
+     * @param {object} request the request body
+     * @param {object} response the response body
+     * @returns {object} response
      * @memberof UserController
      */
-  static async updateProfile(req, res) {
+  static async updateProfile(request, response) {
     try {
       const {
-        firstname, lastname, username, bio,
-      } = req.body;
+        firstname, lastname, email, username, bio,
+      } = request.body;
 
-      const userId = req.user.id;
+      const avatar = request.file;
+      const userId = request.user;
 
-      const userData = await User.findOne({
-        where: {
-          userId
-        }
-      });
+      let avatarValue;
 
-      let firstnameValue;
-      let lastnameValue;
-      let bioValue;
-      let usernameValue;
+      if (avatar) avatarValue = avatar.url;
 
-      if (!firstname) firstnameValue = userData.firstname;
-      else firstnameValue = firstname;
-      if (!lastname) lastnameValue = userData.lastname;
-      else lastnameValue = lastname;
-      if (!bio) bioValue = userData.bio;
-      else bioValue = bio;
-      if (!username) usernameValue = userData.username;
-      else usernameValue = username;
+      const userDetails = {
+        firstname,
+        lastname,
+        email,
+        username,
+        bio,
+        image_url: avatarValue,
+      };
 
-      await userData.update({
-        firstname: firstnameValue,
-        lastname: lastnameValue,
-        username: usernameValue,
-        bio: bioValue,
-      }, {
-        where: {
-          firstname: firstnameValue,
-          lastname: lastnameValue,
-          username: usernameValue,
-          bio: bioValue,
-        }
-      });
+      const where = {
+        id: userId,
+      };
 
-      return res.status(200).json({
-        firstname: firstnameValue,
-        lastname: lastnameValue,
-        username: usernameValue,
-        bio: bioValue,
+      const userData = await User.findOne({ where });
+
+      if (!userData) {
+        return response.status(404).json({
+          status: 404,
+          error: 'User not found',
+        });
+      }
+
+      await userData.update(userDetails, { where });
+
+      return response.status(200).json({
+        status: 200,
+        user: userDetails,
       });
     } catch (error) {
-      return res.status(400).json({
+      if (error.routine === '_bt_check_unique') {
+        return response.status(400).json({
+          status: 400,
+          error: 'User with that username or email already exists',
+        });
+      }
+      return response.status(400).json({
         status: 400,
-        error,
+        error: error.message,
       });
     }
   }
