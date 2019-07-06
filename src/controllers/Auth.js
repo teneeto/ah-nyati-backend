@@ -50,45 +50,51 @@ class AuthController {
         data: [{ token, user }],
       });
     } catch (err) {
-      return res.status(500).json({
-        status: 500,
-        message: 'Internal server error',
-      });
+      return res.status(500).json({ error: true, message: 'Internal Server error' });
     }
   }
 
+  // eslint-disable-next-line valid-jsdoc
   /**
-*
-*
-* @static
-* @param {object} req
-* @param {object} res
-* @returns {object} res
-* @memberof AuthController
-*/
+     *
+     *@description login a user
+     * @static
+     * @param {*} req
+     * @param {*} res
+     * @returns token
+     * @memberof UserController
+     */
   static async login(req, res) {
-    const { email } = req.body;
     try {
-      const user = await User.findOne({
-        where: { email },
-        attributes: { exclude: ['password'] }
-      });
-      const { id } = user;
-      const userToken = Auth.authenticate(id);
-      if (user) {
-        return res.status(200).json({
-          status: 200,
-          message: 'User successfully Logged In',
-          data: userToken
-        });
+      const { email, password } = req.body;
+      const result = await User.findOne({ where: { email } });
+      if (result) {
+        if (passwordHash.verify(password, result.password)) {
+          const { id } = result;
+          const token = await generateToken({ id, email });
+
+          const user = {
+            id: result.id,
+            userName: result.userName,
+            email: result.email,
+            createdAt: result.createdAt,
+            updatedAt: result.updatedAt
+          };
+
+          return res.status(200).json({
+            status: 200,
+            message: 'User Login successful',
+            data: [{ token, user }]
+          });
+        }
+        return res.status(401).json({ error: true, message: 'Invalid email or password' });
       }
-    } catch (error) {
-      return res.status(500).json({
-        status: 500,
-        message: error,
-      });
+      return res.status(401).json({ error: true, message: 'Invalid email or password' });
+    } catch (err) {
+      return res.status(500).json({ error: true, message: 'Internal Server error' });
     }
   }
+
 
   /**
   *

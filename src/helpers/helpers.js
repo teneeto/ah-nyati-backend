@@ -44,7 +44,7 @@ class Auth {
 
   /**
   * @description compares user password
-  * @param {string} hashedPassword - The hashed password in thje database to be compared
+  * @param {string} hashedPassword - The hashed password in the database to be compared
   * @param {string} password - The unhashed password to be compared
   * @returns {boalean } True - If the are the same
   * @returns {boalean } False - If the are not the same
